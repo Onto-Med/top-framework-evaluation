@@ -37,9 +37,8 @@ result %>%
   ) %>%
   add_ci(style_fun = list(everything() ~ style_number_2digits)) %>%
   as_gt() %>%
-  tab_row_group(group = "grouped scales", rows = 7:9) %>%
-  tab_row_group(group = "scales", rows = 1:6)
-
+  tab_row_group("grouped scales", rows = 7:9) %>%
+  tab_row_group("scales", rows = 1:6)
 
 result %>%
   summarise(across(c(attractiveness, perspicuity, efficiency, dependability, stimulation, novelity), mean)) %>%
