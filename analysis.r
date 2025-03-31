@@ -41,24 +41,48 @@ result %>%
   tab_row_group("scales", rows = 1:6)
 
 result %>%
-  summarise(across(c(attractiveness, perspicuity, efficiency, dependability, stimulation, novelity), mean)) %>%
-  tidyr::pivot_longer(
-    c(attractiveness, perspicuity, efficiency, dependability, stimulation, novelity),
-    names_to = "scale",
+  summarise(
+    across(
+      c(attractiveness, perspicuity, efficiency, dependability, stimulation, novelity),
+      .fns = list(mean = mean, margin = ~ qt(0.975, df = n() - 1) * sd(.) / sqrt(n()))
+    )
   ) %>%
-  ggplot(aes(scale, value)) +
+  tidyr::pivot_longer(
+    everything(),
+    names_sep = "_",
+    names_to = c("scale", "property"),
+  ) %>%
+  tidyr::pivot_wider(
+    names_from = property,
+    values_from = value
+  ) %>%
+  mutate(scale = factor(
+    scale,
+    c("attractiveness", "perspicuity", "efficiency", "dependability", "stimulation", "novelity")
+  )) %>%
+  ggplot(aes(scale, mean)) +
   annotate(
     geom = "rect",
     xmin = -Inf,
     xmax = Inf,
-    ymin = c(-2, -0.8, 0.8),
-    ymax = c(-0.8, 0.8, 2),
+    ymin = c(-Inf, -0.8, 0.8),
+    ymax = c(-0.8, 0.8, Inf),
     fill = c("red", "yellow", "green"),
-    alpha = 0.3
+    alpha = 0.2
   ) +
-  geom_hline(yintercept = 0) +
-  geom_bar(stat = "identity") +
+  geom_hline(yintercept = c(-0.8, 0, 0.8), linetype = c("dashed", "solid", "dashed")) +
+  geom_bar(stat = "identity", width = 0.8, fill = "gray50") +
+  geom_errorbar(
+    aes(ymin = mean - margin, ymax = mean + margin),
+    width = 0.3,
+    size = 1
+  ) +
   theme_minimal() +
-  coord_cartesian(ylim = c(-2, 2))
+  theme(
+    axis.text = element_text(size = 15),
+    axis.title = element_text(size = 20, colour = "gray30"),
+  ) +
+  xlab(NULL) +
+  coord_cartesian(ylim = c(-1, 2.5))
 
-ggsave("data/scale_means.png", width = 10, height = 5)
+ggsave("data/scale_means.png", width = 10, height = 6)
