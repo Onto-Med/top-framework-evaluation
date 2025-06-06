@@ -1,7 +1,21 @@
-library(dplyr)
+#' @title Analysis of TOP Framework UX Survey Results
+#'
+#' @description
+#' This script processes and analyzes data collected from an online survey
+#' evaluating user experience (UX) with the TOP Framework. It includes steps
+#' for data preprocessing, calculation of summary statistics for UX-related
+#' scales, and generation of tables and visualizations to facilitate
+#' interpretation of the survey findings. The script is intended for research
+#' and reporting purposes, using survey data provided in CSV format.
+#'
+#' @details
+#' The analysis supports understanding of user perceptions and experiences
+#' with the TOP Framework, providing insights for further development and
+#' improvement.
+
+library(tidyverse)
 library(gtsummary)
 library(gt)
-library(ggplot2)
 
 theme_gtsummary_mean_sd()
 style_number_2digits <- purrr::partial(style_number, digits = 2)
@@ -39,6 +53,15 @@ result %>%
   as_gt() %>%
   tab_row_group("grouped scales", rows = 7:9) %>%
   tab_row_group("scales", rows = 1:6)
+
+result %>%
+  pivot_longer(attractiveness:novelity) %>%
+  group_by(name) %>%
+  rstatix::t_test(value ~ 1, mu = 0.8, alternative = "greater", detailed = TRUE) %>%
+  rstatix::add_significance() %>%
+  select(name, n, estimate, alternative, conf.low, conf.high, p, p.signif) %>%
+  gt() %>%
+  fmt_number(-n, decimals = 3)
 
 result %>%
   summarise(
