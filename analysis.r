@@ -98,7 +98,7 @@ result %>%
   geom_errorbar(
     aes(ymin = mean - margin, ymax = mean + margin),
     width = 0.3,
-    size = 1
+    linewidth = 1
   ) +
   theme_minimal() +
   theme(
