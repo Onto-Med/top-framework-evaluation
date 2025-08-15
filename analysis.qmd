@@ -1,0 +1,180 @@
+---
+title: Analysis of the TOP Framework UX Survey Results
+date: last-modified
+authors:
+  - name: Christoph Beger
+    orcid: 0000-0002-1166-0368
+    email: christoph.beger@medizin.uni-leipzig.de
+    corresponding: true
+    affiliations:
+      - name: Leipzig University
+        department: Institute of Medical Informatics, Statistics and Epidemiology
+        city: Leipzig
+        country: Germany
+        role: author
+format:
+  typst:
+    toc: true
+    section-numbering: 1.1.1
+    echo: false
+    bibliography: references.bib
+    bibliographystyle: elsevier-vancouver
+---
+
+```{=typst}
+#show figure: set block(breakable: true)
+#set page(header: align(right + horizon, [Analysis of the TOP Framework UX Survey Results]))
+```
+
+# Introduction
+
+This script processes and analyses data collected from an online survey evaluating user experience (UX) with the TOP
+Framework [@begerModeldrivenExecutionPhenotype2023; @begerModellingAdverseEvents2023].
+The User Experience Questionnaire (UEQ, version 11) [@schreppMeasuringUserExperience2021] was used to assess
+the user experience.
+This includes steps for data preprocessing, calculation of summary statistics for UX-related scales, and generation of
+tables and visualizations to facilitate interpretation of the survey findings.
+The script is intended for research and reporting purposes, using survey data provided in CSV format.
+
+The analysis supports understanding of user perceptions and experiences with the TOP Framework, providing insights for
+further development and improvement.
+
+Analysis were performed with `r R.version.string` [@rcoreteamLanguageEnvironmentStatistical2024].
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(gtsummary)
+library(gt)
+library(rstatix)
+library(purrr, include.only = "partial")
+```
+
+```{r data-preparation}
+theme_gtsummary_mean_sd()
+style_number_2digits <- partial(style_number, digits = 2)
+
+data <- read.csv("data/NWGTOP_DATA_2025-03-28_1019.csv")
+
+result <- data |>
+  select(record_id, matches("q_\\d+")) |>
+  filter(if_any(q_1:q_26, ~ !is.na(.x))) |>
+  mutate(
+    # scales are ordered randomly and must be standardised to the interval [-3; 3]
+    across(c(q_1:q_2, q_6:q_8, q_11, q_13:q_16, q_20, q_22, q_26), ~ .x - 4),
+    across(c(q_3:q_5, q_9:q_10, q_12, q_17:q_19, q_21, q_23:q_25), ~ 4 - .x),
+    # calculate mean values for each scale
+    attractiveness = mean(c(q_1, q_12, q_14, q_16, q_24, q_25), na.rm = TRUE),
+    perspicuity = mean(c(q_2, q_4, q_13, q_21), na.rm = TRUE),
+    efficiency = mean(c(q_9, q_20, q_22, q_23), na.rm = TRUE),
+    dependability = mean(c(q_8, q_11, q_17, q_19), na.rm = TRUE),
+    stimulation = mean(c(q_5, q_6, q_7, q_18), na.rm = TRUE),
+    novelity = mean(c(q_3, q_10, q_15, q_26), na.rm = TRUE),
+    attractiveness_quality = attractiveness,
+    pragmatic_quality = mean(c(perspicuity, efficiency, dependability)),
+    hedonic_quality = mean(c(stimulation, novelity)),
+    .by = record_id
+  ) |>
+  select(-starts_with("q_"))
+```
+
+# Results
+
+```{r}
+#| label: tbl-summary
+#| tbl-cap: |
+#|   Summary statistics of the TOP Framework UX survey results.
+#|   Data collected from an online survey evaluating user experience with the TOP Framework.
+
+result |>
+  tbl_summary(
+    include = -record_id,
+    type = everything() ~ "continuous2",
+    missing = "no",
+    statistic = all_continuous() ~ c(
+      "{mean} ({sd})",
+      "{min} - {max}",
+      "{median} ({p25}, {p75})"
+    ),
+    label = list(
+      attractiveness_quality ~ "attractiveness quality",
+      pragmatic_quality ~ "pragmatic quality",
+      hedonic_quality ~ "hedonic quality"
+    )
+  ) |>
+  add_ci(style_fun = list(everything() ~ style_number_2digits)) |>
+  as_gt() |>
+  tab_row_group("grouped scales", rows = 25:36) |>
+  tab_row_group("scales", rows = 1:24) |>
+  cols_width(1 ~ cm(2))
+```
+
+```{r}
+#| label: tbl-t-test
+#| tbl-cap: t-test results for the TOP Framework UX survey scales.
+
+result |>
+  pivot_longer(attractiveness:novelity) |>
+  group_by(name) |>
+  t_test(value ~ 1, mu = 0.8, detailed = TRUE) |>
+  add_significance() |>
+  select(name, n, estimate, alternative, conf.low, conf.high, p, p.signif) |>
+  gt() |>
+  fmt_number(-n, decimals = 3) |>
+  cols_width(1 ~ cm(2))
+```
+
+```{r}
+#| label: fig-scale-means
+#| fig-cap: |
+#|   Mean values of the UX scales with confidence intervals.
+#|   The scales are colour-coded based on their performance: red for poor, yellow for acceptable, and green for good.
+#| fig-width: 10
+#| fig-height: 5
+
+result |>
+  summarise(
+    across(
+      c(attractiveness, perspicuity, efficiency, dependability, stimulation, novelity),
+      .fns = list(mean = mean, margin = ~ qt(0.975, df = n() - 1) * sd(.) / sqrt(n()))
+    )
+  ) |>
+  tidyr::pivot_longer(
+    everything(),
+    names_sep = "_",
+    names_to = c("scale", "property"),
+  ) |>
+  tidyr::pivot_wider(
+    names_from = property,
+    values_from = value
+  ) |>
+  mutate(scale = factor(
+    scale,
+    c("attractiveness", "perspicuity", "efficiency", "dependability", "stimulation", "novelity")
+  )) |>
+  ggplot(aes(scale, mean)) +
+  annotate(
+    geom = "rect",
+    xmin = -Inf,
+    xmax = Inf,
+    ymin = c(-Inf, -0.8, 0.8),
+    ymax = c(-0.8, 0.8, Inf),
+    fill = c("#fcbbbbff", "#fcf4b1ff", "#bafcbaff")
+  ) +
+  geom_hline(yintercept = c(-0.8, 0.8), linetype = rep("dashed", 2)) +
+  geom_hline(yintercept = -2:2, color = "gray60", linetype = "solid") +
+  geom_bar(stat = "identity", width = 0.8, fill = "gray50") +
+  geom_errorbar(
+    aes(ymin = mean - margin, ymax = mean + margin),
+    width = 0.3,
+    linewidth = 1
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 15),
+    axis.title = element_text(size = 20, colour = "gray30"),
+  ) +
+  xlab(NULL) +
+  coord_cartesian(ylim = c(-1, 2.5))
+
+ggsave("data/scale-means.png", width = 10, height = 5, dpi = 600)
+```
