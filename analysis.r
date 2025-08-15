@@ -46,13 +46,18 @@ result <- data %>%
 result %>%
   tbl_summary(
     include = -record_id,
-    type = everything() ~ "continuous",
-    missing = "no"
+    type = everything() ~ "continuous2",
+    missing = "no",
+    statistic = all_continuous() ~ c(
+      "{mean} ({sd})",
+      "{min} - {max}",
+      "{median} ({p25}, {p75})"
+    ),
   ) %>%
   add_ci(style_fun = list(everything() ~ style_number_2digits)) %>%
   as_gt() %>%
-  tab_row_group("grouped scales", rows = 7:9) %>%
-  tab_row_group("scales", rows = 1:6)
+  tab_row_group("grouped scales", rows = 25:36) %>%
+  tab_row_group("scales", rows = 1:24)
 
 result %>%
   pivot_longer(attractiveness:novelity) %>%
