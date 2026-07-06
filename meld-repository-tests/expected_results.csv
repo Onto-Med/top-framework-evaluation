@@ -1,0 +1,6 @@
+expectedResultId;subjectId;encounterId;phenotypeId;numberValue;textValue;booleanValue;dateTimeValue
+1;1;1;acc9589d-ec83-49fc-afca-c924d0f45117;14.5;;;
+2;1;1;bf2a4988-c2a5-42f2-9a9b-c60e1af2defe;;;true;
+3;2;2;acc9589d-ec83-49fc-afca-c924d0f45117;9.6;;;
+4;2;2;e739a1f3-985a-4491-aab8-5d7b07e00e82;;;false;
+5;2;3;acc9589d-ec83-49fc-afca-c924d0f45117;13.4;;;
